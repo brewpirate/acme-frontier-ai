@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Field Notes</title>
+  <style>
+    :root {
+      --bg: #1a1b26;
+      --bg-surface: #24283b;
+      --bg-hover: #292e42;
+      --fg: #c0caf5;
+      --fg-dim: #565f89;
+      --fg-muted: #414868;
+      --blue: #7aa2f7;
+      --purple: #bb9af7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --cyan: #7dcfff;
+      --teal: #73daca;
+      --orange: #ff9e64;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+      background: var(--bg);
+      color: var(--fg);
+      padding: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    h1 { color: var(--purple); font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .subtitle { color: var(--fg-dim); margin-bottom: 1.5rem; font-size: 0.85rem; }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .controls input {
+      background: var(--bg-surface);
+      border: 1px solid var(--fg-muted);
+      color: var(--fg);
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .controls input:focus { outline: none; border-color: var(--blue); }
+    .controls input::placeholder { color: var(--fg-muted); }
+
+    .filter-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+    .chip {
+      background: var(--bg-surface);
+      border: 1px solid var(--fg-muted);
+      color: var(--fg-dim);
+      padding: 0.25rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .chip:hover { border-color: var(--fg-dim); color: var(--fg); }
+    .chip.active { border-color: var(--blue); color: var(--blue); background: rgba(122, 162, 247, 0.1); }
+
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-surface);
+      border-radius: 8px;
+      font-size: 0.8rem;
+    }
+
+    .stat-value { color: var(--blue); font-weight: 600; }
+
+    .entry {
+      background: var(--bg-surface);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+      border-left: 3px solid var(--fg-muted);
+      transition: border-color 0.15s;
+    }
+
+    .entry:hover { background: var(--bg-hover); }
+    .entry.outcome-completed { border-left-color: var(--green); }
+    .entry.outcome-partial { border-left-color: var(--yellow); }
+    .entry.outcome-blocked { border-left-color: var(--red); }
+    .entry.outcome-abandoned { border-left-color: var(--fg-muted); }
+
+    .entry-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .entry-time { color: var(--fg-dim); font-size: 0.8rem; }
+
+    .badge {
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-type { background: rgba(122, 162, 247, 0.15); color: var(--blue); }
+    .badge-completed { background: rgba(158, 206, 106, 0.15); color: var(--green); }
+    .badge-partial { background: rgba(224, 175, 104, 0.15); color: var(--yellow); }
+    .badge-blocked { background: rgba(247, 118, 142, 0.15); color: var(--red); }
+    .badge-abandoned { background: rgba(86, 95, 137, 0.15); color: var(--fg-dim); }
+    .badge-delegated { background: rgba(187, 154, 247, 0.15); color: var(--purple); }
+    .badge-primary { background: rgba(115, 218, 202, 0.15); color: var(--teal); }
+
+    .entry-summary { color: var(--fg); font-size: 0.95rem; margin-bottom: 0.5rem; }
+
+    .entry-meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+      color: var(--fg-dim);
+      margin-bottom: 0.5rem;
+    }
+
+    .meta-item::before {
+      content: '·';
+      margin-right: 0.4rem;
+      color: var(--fg-muted);
+    }
+
+    .entry-details { font-size: 0.85rem; }
+
+    .field { padding: 0.2rem 0; color: var(--fg-dim); }
+    .field-label { color: var(--cyan); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .field-value { color: var(--fg); }
+
+    .file-load { text-align: center; padding: 4rem 2rem; }
+
+    .file-load label {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: var(--blue);
+      color: var(--bg);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: opacity 0.15s;
+    }
+
+    .file-load label:hover { opacity: 0.85; }
+    .file-load input { display: none; }
+    .file-load p { color: var(--fg-dim); margin-top: 0.75rem; font-size: 0.85rem; }
+
+    .empty { text-align: center; padding: 3rem; color: var(--fg-dim); }
+  </style>
+</head>
+<body>
+
+  <h1>Field Notes</h1>
+  <div class="subtitle" id="subtitle">Load a journal.jsonl file to view entries</div>
+
+  <div id="loader" class="file-load">
+    <label>
+      Open journal.jsonl
+      <input type="file" id="fileInput" accept=".jsonl,.json">
+    </label>
+    <p>Select your <code>.claude/journal.jsonl</code> file</p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="controls">
+      <input type="text" id="search" placeholder="Search entries...">
+    </div>
+    <div class="filter-chips" id="filters"></div>
+    <div class="stats" id="stats"></div>
+    <div id="entries"></div>
+  </div>
+
+  <script>
+    let allEntries = [];
+    const activeFilters = { type: null, outcome: null, origin: null };
+
+    function loadEntries(text, sourceName) {
+      const lines = text.trim().split('\n');
+      allEntries = lines
+        .map(line => { try { return JSON.parse(line); } catch { return null; } })
+        .filter(Boolean)
+        .reverse();
+
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+
+      const subtitle = document.getElementById('subtitle');
+      subtitle.textContent = `${allEntries.length} entries from ${sourceName}`;
+
+      buildFilters();
+      render();
+    }
+
+    // File picker
+    document.getElementById('fileInput').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (readEvent) => loadEntries(readEvent.target.result, file.name);
+      reader.readAsText(file);
+    });
+
+    // Auto-load from URL hash or query params
+    //
+    // Priority: #base64data > ?data=base64 > ?file=url > file picker
+    //
+    // Hash is preferred because file:// URLs strip query params in most browsers.
+    // Usage: journal.html#<base64-encoded-jsonl>
+
+    const hash = window.location.hash.slice(1);
+    const urlParams = new URLSearchParams(window.location.search);
+    const dataParam = urlParams.get('data');
+    const fileParam = urlParams.get('file');
+
+    if (hash) {
+      try {
+        const text = atob(decodeURIComponent(hash));
+        loadEntries(text, 'journal.jsonl');
+      } catch {
+        const subtitle = document.getElementById('subtitle');
+        subtitle.textContent = 'Failed to decode hash data — use the file picker instead';
+      }
+    } else if (dataParam) {
+      try {
+        const text = atob(dataParam);
+        loadEntries(text, 'journal.jsonl');
+      } catch {
+        const subtitle = document.getElementById('subtitle');
+        subtitle.textContent = 'Failed to decode data parameter — use the file picker instead';
+      }
+    } else if (fileParam) {
+      fetch(fileParam)
+        .then(response => {
+          if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
+          return response.text();
+        })
+        .then(text => loadEntries(text, fileParam))
+        .catch(() => {
+          const subtitle = document.getElementById('subtitle');
+          subtitle.textContent = `Could not load ${fileParam} — use the file picker instead`;
+        });
+    }
+
+    document.getElementById('search').addEventListener('input', render);
+
+    function buildFilters() {
+      const types = [...new Set(allEntries.map(entry => entry.type).filter(Boolean))];
+      const outcomes = [...new Set(allEntries.map(entry => entry.outcome).filter(Boolean))];
+      const origins = [...new Set(allEntries.map(entry => entry.origin).filter(Boolean))];
+
+      const container = document.getElementById('filters');
+      container.replaceChildren();
+
+      const addChips = (values, group) => {
+        for (const value of values) {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = value;
+          chip.dataset.group = group;
+          chip.dataset.value = value;
+          chip.addEventListener('click', () => {
+            if (activeFilters[group] === value) {
+              activeFilters[group] = null;
+              chip.classList.remove('active');
+            } else {
+              for (const sibling of container.querySelectorAll(`[data-group="${group}"]`)) {
+                sibling.classList.remove('active');
+              }
+              activeFilters[group] = value;
+              chip.classList.add('active');
+            }
+            render();
+          });
+          container.appendChild(chip);
+        }
+      };
+
+      addChips(types, 'type');
+      addChips(outcomes, 'outcome');
+      addChips(origins, 'origin');
+    }
+
+    function render() {
+      const query = document.getElementById('search').value.toLowerCase();
+      const filtered = allEntries.filter(entry => {
+        if (activeFilters.type && entry.type !== activeFilters.type) return false;
+        if (activeFilters.outcome && entry.outcome !== activeFilters.outcome) return false;
+        if (activeFilters.origin && entry.origin !== activeFilters.origin) return false;
+        if (query) {
+          const searchable = [
+            entry.summary, entry.workedOn, entry.issues,
+            entry.insights, entry.feedback, entry.blockers,
+            entry.branch, entry.skill
+          ].filter(Boolean).join(' ').toLowerCase();
+          if (!searchable.includes(query)) return false;
+        }
+        return true;
+      });
+
+      renderStats(filtered);
+      renderEntries(filtered);
+    }
+
+    function renderStats(filtered) {
+      const container = document.getElementById('stats');
+      container.replaceChildren();
+
+      const completed = filtered.filter(entry => entry.outcome === 'completed').length;
+      const blocked = filtered.filter(entry => entry.outcome === 'blocked').length;
+      const delegated = filtered.filter(entry => entry.origin === 'delegated').length;
+
+      const pairs = [
+        [filtered.length, 'entries'],
+        [completed, 'completed'],
+        [blocked, 'blocked'],
+        [delegated, 'delegated'],
+      ];
+
+      for (const [value, label] of pairs) {
+        const div = document.createElement('div');
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'stat-value';
+        valueSpan.textContent = value;
+        div.appendChild(valueSpan);
+        div.appendChild(document.createTextNode(` ${label}`));
+        container.appendChild(div);
+      }
+    }
+
+    function renderEntries(filtered) {
+      const container = document.getElementById('entries');
+      container.replaceChildren();
+
+      if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No entries match your filters';
+        container.appendChild(empty);
+        return;
+      }
+
+      for (const entry of filtered) {
+        container.appendChild(buildEntry(entry));
+      }
+    }
+
+    function buildEntry(entry) {
+      const outcome = entry.outcome || 'unknown';
+      const origin = entry.origin || 'primary';
+
+      const div = document.createElement('div');
+      div.className = `entry outcome-${outcome}`;
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'entry-header';
+
+      const time = document.createElement('span');
+      time.className = 'entry-time';
+      time.textContent = formatTime(entry.timestamp);
+      header.appendChild(time);
+
+      header.appendChild(makeBadge(entry.type || '?', 'badge-type'));
+      header.appendChild(makeBadge(outcome, `badge-${outcome}`));
+      header.appendChild(makeBadge(origin, `badge-${origin}`));
+
+      div.appendChild(header);
+
+      // Summary
+      if (entry.summary) {
+        const summary = document.createElement('div');
+        summary.className = 'entry-summary';
+        summary.textContent = entry.summary;
+        div.appendChild(summary);
+      }
+
+      // Meta
+      const metaValues = [
+        entry.workedOn, entry.branch, entry.skill, entry.duration
+      ].filter(Boolean);
+
+      if (metaValues.length > 0) {
+        const meta = document.createElement('div');
+        meta.className = 'entry-meta';
+        for (const value of metaValues) {
+          const span = document.createElement('span');
+          span.className = 'meta-item';
+          span.textContent = value;
+          meta.appendChild(span);
+        }
+        div.appendChild(meta);
+      }
+
+      // Details
+      const details = document.createElement('div');
+      details.className = 'entry-details';
+      let hasDetails = false;
+
+      if (entry.details) {
+        const parts = [];
+        if (entry.details.filesModified?.length) parts.push(`${entry.details.filesModified.length} modified`);
+        if (entry.details.filesCreated?.length) parts.push(`${entry.details.filesCreated.length} created`);
+        if (entry.details.testsAdded) parts.push(`+${entry.details.testsAdded} tests`);
+        if (parts.length > 0) {
+          addField(details, 'Files', parts.join(' · '));
+          hasDetails = true;
+        }
+      }
+
+      const optionalFields = [
+        ['Issues', entry.issues],
+        ['Blockers', entry.blockers],
+        ['Workarounds', entry.workarounds],
+        ['Insights', entry.insights],
+        ['Feedback', entry.feedback],
+        ['Would do differently', entry.wouldDoDifferently],
+      ];
+
+      for (const [label, value] of optionalFields) {
+        if (value && value.trim() !== '') {
+          addField(details, label, value);
+          hasDetails = true;
+        }
+      }
+
+      if (hasDetails) div.appendChild(details);
+
+      return div;
+    }
+
+    function makeBadge(text, className) {
+      const badge = document.createElement('span');
+      badge.className = `badge ${className}`;
+      badge.textContent = text;
+      return badge;
+    }
+
+    function addField(parent, label, value) {
+      const field = document.createElement('div');
+      field.className = 'field';
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'field-label';
+      labelSpan.textContent = label + ' ';
+      field.appendChild(labelSpan);
+
+      const valueSpan = document.createElement('span');
+      valueSpan.className = 'field-value';
+      valueSpan.textContent = value;
+      field.appendChild(valueSpan);
+
+      parent.appendChild(field);
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return '?';
+      try {
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+          ' ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      } catch {
+        return timestamp;
+      }
+    }
+  </script>
+</body>
+</html>

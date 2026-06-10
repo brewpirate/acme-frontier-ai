@@ -1,0 +1,167 @@
+// Naming gate — flags abbreviations and single-character bindings that Biome's
+// `useNamingConvention` can't catch (it checks case, not length/abbreviation).
+// Detection-only: agents see the diagnostic and rename. No autofix.
+//
+// Matches `JsIdentifierBinding` (the declaration node), so it's keyword-agnostic
+// — const/let/var and function/callback parameters are all covered uniformly.
+// Scoped per-package via `overrides` in biome.json; widen the glob as each
+// package is swept clean (the ratchet).
+//
+// The abbreviation set is ported from eslint-plugin-unicorn's prevent-
+// abbreviations dictionary, MINUS this project's sanctioned conventions:
+// `err` (catch binding), `db` (DI injectable), `opts` (options objects),
+// `dest` (pino's `pino.destination({ dest })` option key — an external API
+// name we don't own; the property-key sweep #322 confirmed it was the only
+// `dest` fire and it can't be renamed), `prev`/`props`/`prop`/`ref`/`refs`
+// (React/TanStack idioms — `prev` covers `setState((prev) => …)`,
+// `setQueryData(key, (prev) => …)`, and TanStack Router `search: (prev) => …`
+// updaters, all of which are pervasive in the dashboard), and the
+// ambiguous/high-false-positive `args`/`params`/`fn`/`env`/`dev`/`prod`/`def`/
+// `rel`. Single letters (`e`/`i`/`j`) are handled by the single-char rule.
+//
+// Allowlist: edit the `not $name <: or { … }` set. Numeric loop counters
+// (i/j/k), `_`, zod's `z`, and React event handler `e` are exempt. `e` is
+// allowlisted because the `(e: React.MouseEvent) => …` / `(e: KeyboardEvent)
+// => …` convention is too entrenched in React docs and teaching material —
+// renaming to `event` reads as a project-specific quirk rather than a
+// readability win. Same call would NOT apply to Hono's `c` (which we did
+// rename) because Hono's convention is far less universally taught.
+engine biome(1.0)
+language js(typescript, jsx)
+
+// **PERFORMANCE NOTE.** The two `JsIdentifierBinding()` blocks below
+// each walk every identifier in every file. Optimisations applied:
+//
+//   1. Regex alternations collapsed to a single anchored regex string
+//      per tier instead of `or { r"^x$", r"^y$", ... }`. Modern regex
+//      engines build one DFA from `^(x|y|...)$` and match in one pass;
+//      the `or { ... }` form was evaluating each alternative sequentially
+//      per identifier and was the single biggest hot spot.
+//   2. The single-char tier's exemption regex is anchored once.
+//
+// Same coverage as the previous tiered form. If a name slips that
+// should be flagged, add it to the matching `^(...|...)$` alternation —
+// DO NOT split back into `or { r"...", r"..." }` because that re-introduces
+// per-alternative evaluation cost.
+or {
+  JsIdentifierBinding() as $name where {
+    $name <: r"^[a-z]$",
+    not $name <: r"^(?:i|j|k|_|z|e)$",
+    register_diagnostic(span=$name, message="Single-character name — use a descriptive name. Exempt: loop counters i/j/k, underscore, Zod's z, and React event `e`. See naming-and-style.md.", severity="warn")
+  },
+  JsIdentifierBinding() as $name where {
+    // `cn`/`cx` are project additions beyond the unicorn dictionary: the
+    // shadcn/clsx class-merge idioms. `cn` was renamed to `mergeClassNames`
+    // repo-wide (#364); both are listed so the abbreviation can't regress as a
+    // binding/export name. (Property-key forms like `{ idx: … }` are caught by
+    // the `JsLiteralMemberName` tiers below — that AST gap is now closed.)
+    $name <: r"^(?:acc|amt|arr|attr|attrs|attType|auth|btn|cb|cc|cfg|cn|cnt|conf|cr|ctx|cur|curr|cx|df|dir|dirs|dist|doc|docs|dst|el|elem|elems|ev|evt|ext|exts|func|hdr|idx|inp|len|lib|mod|msg|num|obj|out|pkg|qs|qty|req|res|ret|retval|sep|sig|src|stdDev|str|tbl|temp|tit|tmp|ts|util|utils|val|vars|ver|win|bx|cmd|dec|dur|hi|lo|mem|prs|wf|sk|er)$",
+    register_diagnostic(span=$name, message="Abbreviated name — use the full word (config, context, request, response, message, callback, index, element, …). See naming-and-style.md.", severity="error")
+  },
+  // ── Property-key tiers (closes the `{ idx: … }` AST gap noted above) ──
+  // `JsLiteralMemberName` reaches object-literal keys, type/interface members,
+  // and class member names — the shapes the `JsIdentifierBinding` tiers above
+  // structurally cannot see (`z.object({ n: … })`, `{ cnt: … }`). These are the
+  // exact abbreviations cleaned in the #322 / count-row sweep; gating them here
+  // stops the regression at the field-name level.
+  //
+  // What this does NOT reach: SQL aliases (`SELECT COUNT(*) AS n`) live inside
+  // template-literal strings, not the AST, so GritQL cannot see them. That half
+  // stays review-only — a `scripts/detect-*.ts` scanner is the tool if it ever
+  // needs gating.
+  //
+  // Severity is `error`, matching the binding-abbreviation tier above. This
+  // landed `warn` with ~81 existing production fires (43 of them `ts`) and was
+  // promoted to `error` once the keys were swept clean in #322 — the same
+  // ratchet the binding tier already passed. The two single-char exemptions
+  // beyond the binding tier's (`p`/`a`) are react-markdown `components={{ … }}`
+  // map keys: those keys are HTML element tag names (paragraph/anchor), an
+  // external contract we don't own, and they sit alongside the multi-char
+  // `h1`/`ul`/`li` keys that never tripped the abbreviation tier. They join
+  // `x`/`y` (chart coordinates) as the sanctioned single-char property keys.
+  // The abbreviation alternation below MUST stay in sync with the binding
+  // tier's (GritQL has no shared-constant mechanism; keep both lists identical).
+  JsLiteralMemberName() as $key where {
+    $key <: r"^[a-z]$",
+    not $key <: r"^(?:i|j|k|_|z|e|x|y|p|a)$",
+    register_diagnostic(span=$key, message="Single-character property key — use a descriptive field name (`{ n: … }` → `{ count: … }`). Exempt: x/y coordinates, react-markdown p/a element keys, loop-style i/j/k, _, Zod's z, React event e. See naming-and-style.md.", severity="error")
+  },
+  JsLiteralMemberName() as $key where {
+    $key <: r"^(?:acc|amt|arr|attr|attrs|attType|auth|btn|cb|cc|cfg|cn|cnt|conf|cr|ctx|cur|curr|cx|df|dir|dirs|dist|doc|docs|dst|el|elem|elems|ev|evt|ext|exts|func|hdr|idx|inp|len|lib|mod|msg|num|obj|out|pkg|qs|qty|req|res|ret|retval|sep|sig|src|stdDev|str|tbl|temp|tit|tmp|ts|util|utils|val|vars|ver|win|bx|cmd|dec|dur|hi|lo|mem|prs|wf|sk|er)$",
+    register_diagnostic(span=$key, message="Abbreviated property key — use the full word (`ts` → `timestamp`, `dir` → `directory`, `cmd` → `command`, `cnt` → `count`). See naming-and-style.md.", severity="error")
+  },
+  // Advisory tier — generic names where the surrounding AST gives the agent
+  // a better one for free. Surfaces as `info` (does NOT fail CI) and is
+  // consumed by the PR reviewer workflow as a nit. The PR author must
+  // acknowledge each nit (fix OR explicit wontfix), but is not required to
+  // act on it. Rationale lives in `feedback_agent_codebase_inverts_conventions`
+  // — greppability wins in an agent-driven codebase, even at the cost of a
+  // few extra characters.
+  //
+  // Scoped to **iteration contexts** specifically: `.map(...)` / `.filter(...)`
+  // / `.find(...)` / `.forEach(...)` / `.some(...)` / `.every(...)` /
+  // `.flatMap(...)` callback params, the second param of `.reduce(...)`
+  // (the accumulated element, not the accumulator), and `for (let X = …)`
+  // / `for (const X of …)` loops. These are the shapes where the
+  // surrounding collection NAMES the better variable for the agent
+  // (`sessions.map((s) => …)` → `sessions.map((session) => …)`).
+  //
+  // **Shapes the previous broader match caught but this iteration-scoped
+  // match does not — kept out on purpose** (these are not active
+  // exemptions; the AST shape simply doesn't reach them). Authoritative
+  // list lives in `.claude/rules/naming-and-style.md` "Out of scope for
+  // the iteration-context match". Sketch:
+  //   • TanStack `const { data } = useX()` destructure
+  //   • Hono `const { id } = context.req.valid('param')` destructure
+  //   • Recharts `tickFormatter={(value: number) => …}` callbacks
+  //   • API method param shorthand `methodName: (id, name) => …`
+  //   • `useState` `const [text, setText] = useState('')` convention
+  //   • Standalone `const result = …` locals
+  //
+  // If a new shape turns out to be high-signal and not covered here, add a
+  // new pattern below rather than reverting to the broader `JsIdentifierBinding`
+  // match. The broader match was tried earlier in PR #302 and produced
+  // ~70% library-idiom floor noise across this codebase at the time —
+  // re-measure before citing that number as still authoritative.
+  or {
+    `$_.map(($name) => $_)`,
+    `$_.map($name => $_)`,
+    `$_.map(($name, $_) => $_)`,
+    `$_.filter(($name) => $_)`,
+    `$_.filter($name => $_)`,
+    `$_.filter(($name, $_) => $_)`,
+    `$_.find(($name) => $_)`,
+    `$_.find($name => $_)`,
+    `$_.find(($name, $_) => $_)`,
+    `$_.forEach(($name) => $_)`,
+    `$_.forEach($name => $_)`,
+    `$_.forEach(($name, $_) => $_)`,
+    `$_.some(($name) => $_)`,
+    `$_.some($name => $_)`,
+    `$_.every(($name) => $_)`,
+    `$_.every($name => $_)`,
+    `$_.flatMap(($name) => $_)`,
+    `$_.flatMap($name => $_)`,
+    `$_.reduce(($_, $name) => $_, $_)`,
+    `$_.reduce(($_, $name) => $_)`,
+    `for (let $name = $_; $_; $_) $_`,
+    `for (const $name of $_) $_`,
+    `for (let $name of $_) $_`
+  } where {
+    $name <: or {
+      r"^index$",
+      r"^count$",
+      r"^value$",
+      r"^result$",
+      r"^data$",
+      r"^item$",
+      r"^entry$",
+      r"^text$",
+      r"^name$",
+      r"^id$",
+      r"^obj$",
+      r"^arr$"
+    },
+    register_diagnostic(span=$name, message="Generic iteration variable — name what it walks (`sessions.map((s) => …)` → `(session) => …`, `for (let i = 0; i < rows.length; ...)` → `rowIndex`). Greppability wins in an agent codebase. See naming-and-style.md.", severity="info")
+  }
+}
