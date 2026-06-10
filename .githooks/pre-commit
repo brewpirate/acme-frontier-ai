@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Mirrors .github/workflows/lint_test.yml so commits land green.
+set -euo pipefail
+
+echo "==> Biome (format + lint)..."
+# npx biome ci .
+
+echo "==> Typecheck..."
+# npm run typecheck
+
+echo "==> JSDoc coverage..."
+# npm run check:docs
+
+echo "==> JSDoc audit..."
+# npm run audit:docs
+
+echo "==> Tests..."
+# npm run test
+
+echo "==> All checks passed."

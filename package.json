@@ -1,0 +1,14 @@
+{
+  "name": "acme-frontier-ai",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
