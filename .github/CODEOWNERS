@@ -1,0 +1,9 @@
+# CODEOWNERS 
+#
+# Daniel is the sole owner of all code paths. Combined with branch protection
+# rules on `main` (requiring code owner review), this ensures every PR gets
+# explicit approval before merge.
+#
+# Reference: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-configuration/customizing-your-repository/about-code-owners
+
+* @brewpirate
