@@ -1,0 +1,13 @@
+{
+    "UserPromptSubmit": [
+        {
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": "~/.claude/hooks/inject-skill-source.sh",
+                    "timeout": 5
+                }
+            ]
+        }
+    ]
+}
