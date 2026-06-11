@@ -1,1 +1,1 @@
-[See](../../projects/the-craft/rules/the-posture.md)
+[See](../projects/the-craft/rules/the-posture.md)

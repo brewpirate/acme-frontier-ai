@@ -1,1 +1,1 @@
-[See](../../projects/the-craft/rules/agent-discipline-general.md)
+[See](../projects/the-craft/rules/agent-discipline-general.md)
