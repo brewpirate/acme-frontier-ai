@@ -3,7 +3,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks || true",
+    "symlink": "bun scripts/symlink.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

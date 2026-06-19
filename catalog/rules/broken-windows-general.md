@@ -1,1 +1,0 @@
-[See](../projects/the-craft/rules/broken-windows-general.md)
